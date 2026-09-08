@@ -4,6 +4,7 @@ import { Mail, Lock, UserRound, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { countries } from "@/lib/countries";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -30,6 +31,10 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accountType, setAccountType] = useState<"buyer" | "seller">("buyer");
+  const [bio, setBio] = useState("");
+  const [country, setCountry] = useState("");
+  const [avatar, setAvatar] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!loading && user) {
@@ -44,15 +49,26 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: name },
+            data: { full_name: name, account_type: accountType, bio, country },
             emailRedirectTo: `${window.location.origin}${safeRedirect}`,
           },
         });
         if (error) throw error;
+        if (data.user) {
+          let avatarUrl = "";
+          if (avatar) {
+            const path = `${data.user.id}/${crypto.randomUUID()}-${avatar.name}`;
+            const upload = await supabase.storage.from("avatars").upload(path, avatar, { upsert: true, contentType: avatar.type });
+            if (upload.error) throw upload.error;
+            avatarUrl = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+          }
+          const profile = await supabase.from("profiles").upsert({ id: data.user.id, full_name: name, account_type: accountType, bio, country, avatar_url: avatarUrl }).select().single();
+          if (profile.error) throw profile.error;
+        }
         toast.success("تم إنشاء حسابك! تحقق من بريدك الإلكتروني لتأكيد الحساب.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -92,6 +108,14 @@ function AuthPage() {
 
         <form onSubmit={handleEmail} className="space-y-4">
           {mode === "signup" && (
+            <>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">نوع الحساب</label>
+              <select value={accountType} onChange={(e) => setAccountType(e.target.value as "buyer" | "seller")} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
+                <option value="buyer">حساب مشتري</option>
+                <option value="seller">حساب بائع</option>
+              </select>
+            </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">الاسم الكامل</label>
               <div className="relative">
@@ -104,6 +128,22 @@ function AuthPage() {
                 />
               </div>
             </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">نبذة عنك</label>
+              <textarea required value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} className="min-h-20 w-full rounded-xl border border-input bg-background p-3 text-sm" placeholder={accountType === "seller" ? "اكتب نبذة عن خبرتك ومنتجاتك" : "اكتب نبذة مختصرة عنك"} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">البلد</label>
+              <select required value={country} onChange={(e) => setCountry(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
+                <option value="">اختر البلد</option>
+                {countries.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">الصورة الشخصية</label>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setAvatar(e.target.files?.[0] ?? null)} className="w-full rounded-xl border border-input bg-background p-2 text-sm" />
+            </div>
+            </>
           )}
           <div>
             <label className="mb-1.5 block text-sm font-medium">البريد الإلكتروني</label>
