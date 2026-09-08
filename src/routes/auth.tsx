@@ -69,19 +69,35 @@ function AuthPage() {
   }
 
   async function handleGoogle() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("تعذّر تسجيل الدخول عبر Google");
-      return;
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}${safeRedirect}`,
+      });
+      if (result.error) {
+        toast.error("تعذّر تسجيل الدخول عبر Google");
+        return;
+      }
+      if (!result.redirected) navigate({ to: safeRedirect as "/" });
+    } finally {
+      setBusy(false);
     }
-    async function handleApple() {
-      const result = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
-      if (result.error) toast.error("Apple OAuth غير مفعّل — أضف مفاتيح Apple في Supabase Auth");
+  }
+
+  async function handleApple() {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: `${window.location.origin}${safeRedirect}`,
+      });
+      if (result.error) {
+        toast.error("Apple OAuth غير مفعّل — أضف مفاتيح Apple في Supabase Auth");
+        return;
+      }
+      if (!result.redirected) navigate({ to: safeRedirect as "/" });
+    } finally {
+      setBusy(false);
     }
-    if (result.redirected) return;
-    navigate({ to: safeRedirect as "/" });
   }
 
   return (
@@ -104,6 +120,7 @@ function AuthPage() {
         <button
           type="button"
           onClick={handleGoogle}
+          disabled={busy}
           className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -129,6 +146,7 @@ function AuthPage() {
         <button
           type="button"
           onClick={handleApple}
+          disabled={busy}
           className="mt-2 flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
         >
           <span className="text-lg">●</span>
