@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Mail, Lock, UserRound, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth")({
@@ -71,14 +70,15 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}${safeRedirect}`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}${safeRedirect}`,
+        },
       });
-      if (result.error) {
+      if (error) {
         toast.error("تعذّر تسجيل الدخول عبر Google");
-        return;
       }
-      if (!result.redirected) navigate({ to: safeRedirect as "/" });
     } finally {
       setBusy(false);
     }
@@ -87,14 +87,15 @@ function AuthPage() {
   async function handleApple() {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("apple", {
-        redirect_uri: `${window.location.origin}${safeRedirect}`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: `${window.location.origin}${safeRedirect}`,
+        },
       });
-      if (result.error) {
+      if (error) {
         toast.error("Apple OAuth غير مفعّل — أضف مفاتيح Apple في Supabase Auth");
-        return;
       }
-      if (!result.redirected) navigate({ to: safeRedirect as "/" });
     } finally {
       setBusy(false);
     }
