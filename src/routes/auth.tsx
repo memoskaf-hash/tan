@@ -67,40 +67,6 @@ function AuthPage() {
     }
   }
 
-  async function handleGoogle() {
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}${safeRedirect}`,
-        },
-      });
-      if (error) {
-        toast.error("تعذّر تسجيل الدخول عبر Google");
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleApple() {
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: `${window.location.origin}${safeRedirect}`,
-        },
-      });
-      if (error) {
-        toast.error("Apple OAuth غير مفعّل — أضف مفاتيح Apple في Supabase Auth");
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="mx-auto flex max-w-md flex-col px-4 py-16">
       <div className="rounded-2xl border border-border bg-card p-8">
@@ -117,42 +83,6 @@ function AuthPage() {
               : "أنشئ حسابًا لحفظ مشترياتك والوصول إليها مدى الحياة."}
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={busy}
-          className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
-        >
-          <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="#4285F4"
-              d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.63h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.09 3.57-5.16 3.57-8.8Z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.87-3c-1.07.72-2.44 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.29v3.1A12 12 0 0 0 12 24Z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.29a12 12 0 0 0 0 10.76l3.98-3.1Z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 4.76c1.76 0 3.34.6 4.58 1.8l3.44-3.44A11.97 11.97 0 0 0 12 0 12 12 0 0 0 1.29 6.62l3.98 3.1C6.22 6.87 8.87 4.76 12 4.76Z"
-            />
-          </svg>
-          المتابعة عبر Google
-        </button>
-        <button
-          type="button"
-          onClick={handleApple}
-          disabled={busy}
-          className="mt-2 flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
-        >
-          <span className="text-lg">●</span>
-          المتابعة عبر Apple (يتطلب إعداد Supabase)
-        </button>
 
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
