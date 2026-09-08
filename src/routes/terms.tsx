@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+export const Route = createFileRoute("/terms")({ component: () => <Legal title="الشروط والأحكام"><p>باستخدام المتجر توافق على تقديم معلومات صحيحة، وعلى استخدام المنتجات للاستخدام المرخص فقط. المنتجات الرقمية لا تُعد مدفوعة حتى يؤكد مزود الدفع الطلب.</p><p>قد تتغير الأسعار والمحتوى، وتطبق القوانين المحلية وشروط مزود الدفع.</p></Legal> });
+function Legal({ title, children }: { title: string; children: React.ReactNode }) { return <article className="mx-auto max-w-3xl px-4 py-16 leading-8"><h1 className="mb-8 text-3xl font-bold">{title}</h1><div className="space-y-5 text-muted-foreground">{children}</div></article>; }
