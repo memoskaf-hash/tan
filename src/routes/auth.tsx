@@ -35,6 +35,7 @@ function AuthPage() {
   const [bio, setBio] = useState("");
   const [country, setCountry] = useState("");
   const [avatar, setAvatar] = useState<File | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   if (!loading && user) {
@@ -46,6 +47,17 @@ function AuthPage() {
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+    if (mode === "signup" && name.trim().length < 2) errors.name = "اكتب اسمًا صحيحًا";
+    if (!email.includes("@")) errors.email = "أدخل بريدًا إلكترونيًا صحيحًا";
+    if (password.length < 6) errors.password = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
+    if (mode === "signup" && !country) errors.country = "اختر بلدك";
+    if (mode === "signup" && bio.trim().length < 10) errors.bio = "اكتب نبذة لا تقل عن 10 أحرف";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      toast.error(Object.values(errors)[0]);
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -124,17 +136,18 @@ function AuthPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={`w-full rounded-xl border bg-background py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.name ? "border-red-500 ring-1 ring-red-500" : "border-input"}`}
                 />
               </div>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">نبذة عنك</label>
               <textarea required value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} className="min-h-20 w-full rounded-xl border border-input bg-background p-3 text-sm" placeholder={accountType === "seller" ? "اكتب نبذة عن خبرتك ومنتجاتك" : "اكتب نبذة مختصرة عنك"} />
+              {fieldErrors.bio && <p className="mt-1 text-xs text-red-600">{fieldErrors.bio}</p>}
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">البلد</label>
-              <select required value={country} onChange={(e) => setCountry(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
+              <select required value={country} onChange={(e) => setCountry(e.target.value)} className={`w-full rounded-xl border bg-background px-3 py-2.5 text-sm ${fieldErrors.country ? "border-red-500" : "border-input"}`}>
                 <option value="">اختر البلد</option>
                 {countries.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
@@ -155,7 +168,7 @@ function AuthPage() {
                 dir="ltr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-input bg-background py-2.5 pr-10 pl-4 text-left text-sm outline-none focus:ring-2 focus:ring-ring"
+                className={`w-full rounded-xl border bg-background py-2.5 pr-10 pl-4 text-left text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.email ? "border-red-500" : "border-input"}`}
               />
             </div>
           </div>
@@ -170,7 +183,7 @@ function AuthPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-input bg-background py-2.5 pr-10 pl-4 text-left text-sm outline-none focus:ring-2 focus:ring-ring"
+                className={`w-full rounded-xl border bg-background py-2.5 pr-10 pl-4 text-left text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.password ? "border-red-500" : "border-input"}`}
               />
             </div>
           </div>

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { countries } from "@/lib/countries";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -33,6 +34,7 @@ function CheckoutPage() {
   const [invoice, setInvoice] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     fetch("/api/payments").then((response) => response.ok ? response.json() : null)
       .then((data) => data && setAvailable(data.providers)).catch(() => setAvailable({}));
@@ -67,6 +69,14 @@ function CheckoutPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const errors: Record<string, string> = {};
+    if (name.trim().length < 2) errors.name = "أدخل الاسم الكامل";
+    if (!country) errors.country = "اختر البلد";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      toast.error(Object.values(errors)[0]);
+      return;
+    }
     setBusy(true);
     try {
       const { data: order, error: orderError } = await supabase
@@ -114,8 +124,9 @@ function CheckoutPage() {
       setInvoice(`INV-${order.id.slice(0, 8).toUpperCase()}`);
       setDone(true);
       toast.success("تم تسجيل طلبك بنجاح");
-    } catch {
-      toast.error("تعذّر حفظ الطلب، حاول مجددًا");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "تعذّر حفظ الطلب، حاول مجددًا";
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -175,7 +186,7 @@ function CheckoutPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.name ? "border-red-500 ring-1 ring-red-500" : "border-input"}`}
                 />
               </div>
               <div>
@@ -191,12 +202,15 @@ function CheckoutPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">الدولة</label>
-              <input
+              <select
                 required
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
+                className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.country ? "border-red-500" : "border-input"}`}
+              >
+                <option value="">اختر البلد</option>
+                {countries.map((item) => <option key={item}>{item}</option>)}
+              </select>
             </div>
             <p className="flex items-center gap-2 rounded-xl bg-muted p-3 text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-primary" />
