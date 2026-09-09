@@ -28,7 +28,7 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
         <Link to="/" className="group flex items-center gap-2.5">
           <img
-            src="/joud-logo.svg"
+            src="/joud-logo.png"
             alt={language === "ar" ? "شعار جود" : "Joud logo"}
             className="h-16 w-auto object-contain drop-shadow-[0_8px_18px_rgba(16,91,175,0.20)]"
           />
