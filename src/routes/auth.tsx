@@ -72,6 +72,7 @@ function AuthPage() {
         setBusy(false);
       }
     }
+
     setBusy(true);
     try {
       if (mode === "signup") {
