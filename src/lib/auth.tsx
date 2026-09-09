@@ -12,8 +12,10 @@ export function useAuth() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    const sessionRequest = supabase.auth.getSession();
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+    Promise.race([sessionRequest, timeout]).then((result) => {
+      if (result) setSession(result.data.session);
       setLoading(false);
     });
     const {

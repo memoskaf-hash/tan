@@ -60,10 +60,26 @@ function AuthPage() {
         setEmail(user.email || "");
         setProfileNeedsDetails(!data?.age || !data?.country);
         setProfileChecked(true);
+      })
+      .catch(() => {
+        setName(user.user_metadata?.full_name || "");
+        setAge(user.user_metadata?.age ? String(user.user_metadata.age) : "");
+        setCountry(user.user_metadata?.country || "");
+        setEmail(user.email || "");
+        setProfileNeedsDetails(true);
+        setProfileChecked(true);
       });
   }, [loading, user]);
 
   const completingProfile = Boolean(user && profileChecked && profileNeedsDetails);
+
+  if (loading || (user && !profileChecked)) {
+    return (
+      <main className="flex min-h-[70vh] items-center justify-center px-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" aria-label="جار التحميل" />
+      </main>
+    );
+  }
 
   if (!loading && profileChecked && user && !completingProfile) {
     navigate({ to: redirect as "/" });
@@ -76,7 +92,9 @@ function AuthPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}${safeRedirect}` },
+      options: {
+        redirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(safeRedirect)}`,
+      },
     });
     if (error) {
       toast.error(error.message);
@@ -122,16 +140,10 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        if (data.user) {
-          let avatarUrl = "";
-          if (avatar) {
-            const path = `${data.user.id}/${crypto.randomUUID()}-${avatar.name}`;
-            const upload = await supabase.storage.from("avatars").upload(path, avatar, { upsert: true, contentType: avatar.type });
-            if (upload.error) throw upload.error;
-            avatarUrl = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
-          }
-          const profile = await supabase.from("profiles").upsert({ id: data.user.id, full_name: name, age: Number(age), account_type: accountType, bio, country, avatar_url: avatarUrl }).select().single();
-          if (profile.error) throw profile.error;
+        if (data.user && data.session && avatar) {
+          const path = `${data.user.id}/${crypto.randomUUID()}-${avatar.name}`;
+          const upload = await supabase.storage.from("avatars").upload(path, avatar, { upsert: true, contentType: avatar.type });
+          if (upload.error) throw upload.error;
         }
         toast.success("تم إنشاء حسابك! تحقق من بريدك الإلكتروني لتأكيد الحساب.");
       } else {
@@ -148,13 +160,25 @@ function AuthPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col px-4 py-16">
-      <div className="rounded-2xl border border-border bg-card p-8">
-        <div className="text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-            <LogIn className="h-6 w-6 text-primary" />
-          </span>
-          <h1 className="mt-4 text-2xl font-bold">
+    <main className="relative overflow-hidden px-4 py-10 sm:py-16">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_50%_0%,oklch(0.92_0.08_250_/_0.6),transparent_70%)]" />
+      <div className="relative mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_24px_80px_oklch(0.25_0.08_250_/_0.12)] lg:grid-cols-[0.85fr_1.15fr]">
+        <aside className="hidden bg-primary p-10 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
+          <div>
+            <img src="/joud-logo.png" alt="شعار جود" className="h-20 w-auto object-contain object-right brightness-0 invert" />
+            <p className="mt-10 text-sm font-medium uppercase tracking-[0.2em] text-primary-foreground/65">Joud Existence</p>
+            <h2 className="mt-4 text-3xl font-bold leading-[1.5]">مساحتك للتعلّم والنمو تبدأ من هنا.</h2>
+            <p className="mt-5 text-sm leading-7 text-primary-foreground/75">احفظ مشترياتك، تابع تقدّمك، واكتشف محتوى صُمّم ليصنع فرقًا حقيقيًا.</p>
+          </div>
+          <p className="text-xs text-primary-foreground/60">بياناتك محفوظة بأمان عبر Supabase</p>
+        </aside>
+
+        <div className="p-6 sm:p-10">
+          <div className="text-center">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+              <LogIn className="h-6 w-6 text-primary" />
+            </span>
+            <h1 className="mt-4 text-2xl font-bold">
             {completingProfile ? "أكمل بيانات حسابك" : mode === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -167,7 +191,7 @@ function AuthPage() {
         </div>
 
         {!completingProfile && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <button type="button" onClick={() => handleSocial("google")} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-background py-3 font-semibold transition hover:bg-muted disabled:opacity-60">
               <Chrome className="h-4 w-4" />
               المتابعة باستخدام Gmail
@@ -185,7 +209,7 @@ function AuthPage() {
           <span className="h-px flex-1 bg-border" />
         </div>}
 
-        <form onSubmit={handleEmail} className="space-y-4">
+        <form onSubmit={handleEmail} className="mt-2 space-y-4">
           {(mode === "signup" || completingProfile) && (
             <>
             <div>
@@ -277,14 +301,14 @@ function AuthPage() {
             {mode === "login" ? "أنشئ حسابًا" : "سجّل دخولك"}
           </button>
         </p>}
-      </div>
-
-      <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-center text-xs text-muted-foreground">
         بالمتابعة أنت توافق على شروط الاستخدام.{" "}
         <Link to="/" className="text-primary hover:underline">
           العودة للمتجر
         </Link>
-      </p>
-    </div>
+          </p>
+        </div>
+      </div>
+    </main>
   );
 }
