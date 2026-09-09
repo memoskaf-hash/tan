@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Mail, Lock, UserRound, LogIn, Github } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mail, Lock, UserRound, LogIn, Chrome, Apple } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -29,6 +29,7 @@ function AuthPage() {
   const { user, loading } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
+  const [age, setAge] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accountType, setAccountType] = useState<"buyer" | "seller">("buyer");
@@ -37,21 +38,60 @@ function AuthPage() {
   const [avatar, setAvatar] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [profileNeedsDetails, setProfileNeedsDetails] = useState(false);
 
-  if (!loading && user) {
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      setProfileChecked(true);
+      return;
+    }
+
+    supabase
+      .from("profiles")
+      .select("full_name, age, country")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setName(data?.full_name || user.user_metadata?.full_name || "");
+        setAge(data?.age ? String(data.age) : "");
+        setCountry(data?.country || "");
+        setEmail(user.email || "");
+        setProfileNeedsDetails(!data?.age || !data?.country);
+        setProfileChecked(true);
+      });
+  }, [loading, user]);
+
+  const completingProfile = Boolean(user && profileChecked && profileNeedsDetails);
+
+  if (!loading && profileChecked && user && !completingProfile) {
     navigate({ to: redirect as "/" });
     return null;
   }
 
   const safeRedirect = redirect.startsWith("/") ? redirect : "/";
 
+  async function handleSocial(provider: "google" | "apple") {
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}${safeRedirect}` },
+    });
+    if (error) {
+      toast.error(error.message);
+      setBusy(false);
+    }
+  }
+
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     const errors: Record<string, string> = {};
-    if (mode === "signup" && name.trim().length < 2) errors.name = "اكتب اسمًا صحيحًا";
+    if ((mode === "signup" || completingProfile) && name.trim().length < 2) errors.name = "اكتب اسمًا صحيحًا";
+    if ((mode === "signup" || completingProfile) && (!Number.isInteger(Number(age)) || Number(age) < 13 || Number(age) > 120)) errors.age = "أدخل عمرًا صحيحًا بين 13 و120";
     if (!email.includes("@")) errors.email = "أدخل بريدًا إلكترونيًا صحيحًا";
-    if (password.length < 6) errors.password = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
-    if (mode === "signup" && !country) errors.country = "اختر بلدك";
+    if (!completingProfile && password.length < 6) errors.password = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
+    if ((mode === "signup" || completingProfile) && !country) errors.country = "اختر بلدك";
     if (mode === "signup" && bio.trim().length < 10) errors.bio = "اكتب نبذة لا تقل عن 10 أحرف";
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
@@ -59,28 +99,25 @@ function AuthPage() {
       return;
     }
 
-    async function handleGithub() {
-      setBusy(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: `${window.location.origin}${safeRedirect}`,
-        },
-      });
-      if (error) {
-        toast.error(error.message);
-        setBusy(false);
-      }
-    }
-
     setBusy(true);
     try {
-      if (mode === "signup") {
+      if (completingProfile) {
+        const { error } = await supabase.from("profiles").upsert({
+          id: user.id,
+          full_name: name.trim(),
+          age: Number(age),
+          country,
+        });
+        if (error) throw error;
+        setProfileNeedsDetails(false);
+        toast.success("تم حفظ بياناتك بنجاح!");
+        navigate({ to: safeRedirect as "/" });
+      } else if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: name, account_type: accountType, bio, country },
+            data: { full_name: name, age: Number(age), account_type: accountType, bio, country },
             emailRedirectTo: `${window.location.origin}${safeRedirect}`,
           },
         });
@@ -93,7 +130,7 @@ function AuthPage() {
             if (upload.error) throw upload.error;
             avatarUrl = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
           }
-          const profile = await supabase.from("profiles").upsert({ id: data.user.id, full_name: name, account_type: accountType, bio, country, avatar_url: avatarUrl }).select().single();
+          const profile = await supabase.from("profiles").upsert({ id: data.user.id, full_name: name, age: Number(age), account_type: accountType, bio, country, avatar_url: avatarUrl }).select().single();
           if (profile.error) throw profile.error;
         }
         toast.success("تم إنشاء حسابك! تحقق من بريدك الإلكتروني لتأكيد الحساب.");
@@ -118,33 +155,38 @@ function AuthPage() {
             <LogIn className="h-6 w-6 text-primary" />
           </span>
           <h1 className="mt-4 text-2xl font-bold">
-            {mode === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+            {completingProfile ? "أكمل بيانات حسابك" : mode === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login"
+            {completingProfile
+              ? "أدخل الاسم والعمر والبلد لإكمال حسابك."
+              : mode === "login"
               ? "سجّل دخولك للوصول إلى مشترياتك وإتمام الطلبات."
               : "أنشئ حسابًا لحفظ مشترياتك والوصول إليها مدى الحياة."}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGithub}
-          disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-background py-3 font-semibold transition hover:bg-muted disabled:opacity-60"
-        >
-          <Github className="h-4 w-4" />
-          المتابعة باستخدام GitHub
-        </button>
+        {!completingProfile && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={() => handleSocial("google")} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-background py-3 font-semibold transition hover:bg-muted disabled:opacity-60">
+              <Chrome className="h-4 w-4" />
+              المتابعة باستخدام Gmail
+            </button>
+            <button type="button" onClick={() => handleSocial("apple")} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-background py-3 font-semibold transition hover:bg-muted disabled:opacity-60">
+              <Apple className="h-4 w-4" />
+              المتابعة باستخدام Apple
+            </button>
+          </div>
+        )}
 
-        <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+        {!completingProfile && <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
           أو عبر البريد الإلكتروني
           <span className="h-px flex-1 bg-border" />
-        </div>
+        </div>}
 
         <form onSubmit={handleEmail} className="space-y-4">
-          {mode === "signup" && (
+          {(mode === "signup" || completingProfile) && (
             <>
             <div>
               <label className="mb-1.5 block text-sm font-medium">نوع الحساب</label>
@@ -166,6 +208,10 @@ function AuthPage() {
               </div>
             </div>
             <div>
+              <label className="mb-1.5 block text-sm font-medium">العمر</label>
+              <input required type="number" min={13} max={120} value={age} onChange={(e) => setAge(e.target.value)} className={`w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.age ? "border-red-500" : "border-input"}`} />
+            </div>
+            <div>
               <label className="mb-1.5 block text-sm font-medium">نبذة عنك</label>
               <textarea required value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} className="min-h-20 w-full rounded-xl border border-input bg-background p-3 text-sm" placeholder={accountType === "seller" ? "اكتب نبذة عن خبرتك ومنتجاتك" : "اكتب نبذة مختصرة عنك"} />
               {fieldErrors.bio && <p className="mt-1 text-xs text-red-600">{fieldErrors.bio}</p>}
@@ -183,7 +229,7 @@ function AuthPage() {
             </div>
             </>
           )}
-          <div>
+          {!completingProfile && <div>
             <label className="mb-1.5 block text-sm font-medium">البريد الإلكتروني</label>
             <div className="relative">
               <Mail className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -196,8 +242,8 @@ function AuthPage() {
                 className={`w-full rounded-xl border bg-background py-2.5 pr-10 pl-4 text-left text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.email ? "border-red-500" : "border-input"}`}
               />
             </div>
-          </div>
-          <div>
+          </div>}
+          {!completingProfile && <div>
             <label className="mb-1.5 block text-sm font-medium">كلمة المرور</label>
             <div className="relative">
               <Lock className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -211,17 +257,17 @@ function AuthPage() {
                 className={`w-full rounded-xl border bg-background py-2.5 pr-10 pl-4 text-left text-sm outline-none focus:ring-2 focus:ring-ring ${fieldErrors.password ? "border-red-500" : "border-input"}`}
               />
             </div>
-          </div>
+          </div>}
           <button
             type="submit"
             disabled={busy}
             className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? "جارٍ المعالجة…" : mode === "login" ? "دخول" : "إنشاء الحساب"}
+            {busy ? "جارٍ المعالجة…" : completingProfile ? "حفظ البيانات" : mode === "login" ? "دخول" : "إنشاء الحساب"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        {!completingProfile && <p className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}{" "}
           <button
             type="button"
@@ -230,7 +276,7 @@ function AuthPage() {
           >
             {mode === "login" ? "أنشئ حسابًا" : "سجّل دخولك"}
           </button>
-        </p>
+        </p>}
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">

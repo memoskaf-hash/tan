@@ -45,8 +45,8 @@ export type Database = {
         Relationships: [];
       };
       profiles: {
-        Row: { id: string; full_name: string | null; phone: string | null; avatar_url: string | null; account_type: string; bio: string | null; country: string | null; updated_at: string | null };
-        Insert: { id: string; full_name?: string | null; phone?: string | null; avatar_url?: string | null; account_type?: string; bio?: string | null; country?: string | null; updated_at?: string | null };
+        Row: { id: string; full_name: string | null; phone: string | null; avatar_url: string | null; account_type: string; bio: string | null; age: number | null; country: string | null; updated_at: string | null };
+        Insert: { id: string; full_name?: string | null; phone?: string | null; avatar_url?: string | null; account_type?: string; bio?: string | null; age?: number | null; country?: string | null; updated_at?: string | null };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
       };
