@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+export const Route = createFileRoute("/privacy")({ component: () => <Legal title="سياسة الخصوصية"><p>نستخدم بيانات الحساب والطلبات لتقديم المنتجات الرقمية ودعم العملاء. لا نبيع بياناتك، ونحتفظ بها وفق المتطلبات القانونية.</p><p>يمكنك طلب الوصول أو التصحيح أو الحذف عبر صفحة التواصل، مع مراعاة سجلات المعاملات المطلوبة قانونيًا.</p></Legal> });
+function Legal({ title, children }: { title: string; children: React.ReactNode }) { return <article className="mx-auto max-w-3xl px-4 py-16 leading-8"><h1 className="mb-8 text-3xl font-bold">{title}</h1><div className="space-y-5 text-muted-foreground">{children}</div></article>; }
